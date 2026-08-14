@@ -1,0 +1,1385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>BestAim Analysis Tool</title>
+<style>
+/* ─── Reset & Base ─── */
+* {
+box-sizing: border-box;
+margin: 0;
+padding: 0;
+}
+body {
+background: transparent;
+font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+overflow: hidden;
+user-select: none;
+}
+
+/* ─── Overlay Container ─── */
+#overlay {
+position: fixed;
+top: 40px;
+left: 40px;
+width: 420px;
+max-width: 92vw;
+background: rgba(8, 12, 24, 0.92);
+backdrop-filter: blur(12px);
+-webkit-backdrop-filter: blur(12px);
+border: 1px solid rgba(255, 255, 255, 0.08);
+border-radius: 18px;
+padding: 18px 20px 14px;
+box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), 0 0 0 1px rgba(255, 255, 255, 0.04) inset;
+color: #d6dce8;
+font-size: 13px;
+line-height: 1.5;
+cursor: default;
+z-index: 99999;
+transition: opacity 0.2s;
+min-width: 320px;
+}
+#overlay.dragging {
+opacity: 0.92;
+cursor: grabbing;
+}
+
+/* ─── Header ─── */
+.header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 10px;
+cursor: grab;
+}
+.header:active {
+cursor: grabbing;
+}
+.header-left {
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.logo {
+font-weight: 700;
+font-size: 15px;
+letter-spacing: -0.2px;
+color: #f0f4ff;
+}
+.logo span {
+color: #6c8cff;
+}
+.header-actions {
+display: flex;
+align-items: center;
+gap: 6px;
+}
+.header-actions button {
+background: rgba(255, 255, 255, 0.06);
+border: none;
+color: #8896b0;
+width: 28px;
+height: 28px;
+border-radius: 8px;
+font-size: 15px;
+cursor: pointer;
+display: flex;
+align-items: center;
+justify-content: center;
+transition: background 0.15s, color 0.15s;
+}
+.header-actions button:hover {
+background: rgba(255, 255, 255, 0.12);
+color: #d6dce8;
+}
+.header-actions button.close-btn:hover {
+background: rgba(255, 70, 70, 0.25);
+color: #ff7a7a;
+}
+
+/* ─── Status Bar ─── */
+.status-bar {
+display: flex;
+align-items: center;
+gap: 14px;
+padding: 6px 10px 8px 10px;
+background: rgba(255, 255, 255, 0.03);
+border-radius: 10px;
+margin-bottom: 10px;
+flex-wrap: wrap;
+font-size: 12px;
+}
+.status-live {
+display: flex;
+align-items: center;
+gap: 5px;
+font-weight: 500;
+}
+.status-dot {
+display: inline-block;
+width: 8px;
+height: 8px;
+border-radius: 50%;
+background: #4caf50;
+animation: pulse-dot 1.6s ease-in-out infinite;
+}
+.status-dot.off {
+background: #6b7280;
+animation: none;
+}
+@keyframes pulse-dot {
+0%,
+100% {
+opacity: 1;
+transform: scale(1);
+}
+50% {
+opacity: 0.5;
+transform: scale(0.85);
+}
+}
+.status-meta {
+display: flex;
+align-items: center;
+gap: 10px;
+color: #8896b0;
+font-weight: 400;
+}
+.status-meta span {
+color: #d6dce8;
+font-weight: 500;
+}
+.status-meta .ready-count {
+color: #6c8cff;
+}
+
+/* ─── Market Selector ─── */
+.market-selector {
+display: flex;
+align-items: center;
+gap: 8px;
+margin-bottom: 12px;
+}
+.market-selector label {
+font-size: 12px;
+font-weight: 500;
+color: #8896b0;
+letter-spacing: 0.3px;
+}
+.market-selector select {
+flex: 1;
+background: rgba(255, 255, 255, 0.06);
+border: 1px solid rgba(255, 255, 255, 0.08);
+border-radius: 8px;
+padding: 6px 10px;
+color: #f0f4ff;
+font-size: 13px;
+font-weight: 500;
+outline: none;
+cursor: pointer;
+transition: border 0.15s;
+appearance: none;
+background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238896b0'/%3E%3C/svg%3E");
+background-repeat: no-repeat;
+background-position: right 10px center;
+padding-right: 32px;
+}
+.market-selector select:hover {
+border-color: rgba(255, 255, 255, 0.16);
+}
+.market-selector select:focus {
+border-color: #6c8cff;
+}
+.market-selector select option {
+background: #141c2b;
+color: #f0f4ff;
+}
+
+/* ─── Stats Grid ─── */
+.stats-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 8px;
+margin-bottom: 10px;
+}
+.stat-card {
+background: rgba(255, 255, 255, 0.03);
+border-radius: 10px;
+padding: 10px 12px;
+border: 1px solid rgba(255, 255, 255, 0.04);
+transition: border-color 0.25s, background 0.25s;
+}
+.stat-card.highlight {
+border-color: rgba(108, 140, 255, 0.3);
+background: rgba(108, 140, 255, 0.06);
+}
+.stat-card .label {
+font-size: 10px;
+text-transform: uppercase;
+letter-spacing: 0.5px;
+color: #6b7a96;
+font-weight: 600;
+margin-bottom: 3px;
+}
+.stat-card .value {
+font-size: 22px;
+font-weight: 700;
+letter-spacing: -0.5px;
+color: #f0f4ff;
+line-height: 1.2;
+}
+.stat-card .value .sub {
+font-size: 14px;
+font-weight: 400;
+color: #8896b0;
+margin-left: 4px;
+}
+.stat-card .bar-wrap {
+margin-top: 4px;
+height: 4px;
+background: rgba(255, 255, 255, 0.06);
+border-radius: 4px;
+overflow: hidden;
+position: relative;
+}
+.stat-card .bar-wrap .bar {
+height: 100%;
+border-radius: 4px;
+transition: width 0.4s ease;
+background: linear-gradient(90deg, #6c8cff, #4f6fdf);
+width: 0%;
+}
+.stat-card .bar-wrap .bar.hot {
+background: linear-gradient(90deg, #fbbf24, #f59e0b);
+}
+.stat-card .bar-wrap .bar.strong {
+background: linear-gradient(90deg, #34d399, #10b981);
+}
+.stat-card .mini-row {
+display: flex;
+justify-content: space-between;
+font-size: 12px;
+color: #8896b0;
+margin-top: 2px;
+}
+.stat-card .mini-row .num {
+font-weight: 600;
+color: #d6dce8;
+}
+
+/* Full-width card for rise/fall */
+.stat-card.full {
+grid-column: 1 / -1;
+}
+.stat-card .rise-fall {
+display: flex;
+justify-content: space-around;
+padding-top: 2px;
+}
+.stat-card .rise-fall .rf-item {
+display: flex;
+align-items: center;
+gap: 6px;
+font-size: 13px;
+}
+.stat-card .rise-fall .rf-item .rf-label {
+color: #8896b0;
+font-weight: 400;
+}
+.stat-card .rise-fall .rf-item .rf-value {
+font-weight: 700;
+color: #f0f4ff;
+}
+.stat-card .rise-fall .rf-item .rf-value.up {
+color: #34d399;
+}
+.stat-card .rise-fall .rf-item .rf-value.down {
+color: #f87171;
+}
+
+/* ─── Digit Match Special ─── */
+.digit-match .digit-display {
+display: flex;
+align-items: baseline;
+gap: 6px;
+}
+.digit-match .digit-display .digit {
+font-size: 32px;
+font-weight: 800;
+color: #f0f4ff;
+line-height: 1;
+}
+.digit-match .digit-display .pct {
+font-size: 18px;
+font-weight: 600;
+color: #6c8cff;
+}
+.digit-match .digit-display .pct.hot {
+color: #fbbf24;
+}
+.digit-match .digit-display .pct.strong {
+color: #34d399;
+}
+.digit-match .sub-digits {
+font-size: 11px;
+color: #6b7a96;
+margin-top: 2px;
+display: flex;
+gap: 6px;
+flex-wrap: wrap;
+}
+.digit-match .sub-digits .d-item {
+display: inline-block;
+background: rgba(255, 255, 255, 0.04);
+padding: 0 6px;
+border-radius: 4px;
+}
+.digit-match .sub-digits .d-item .d-pct {
+color: #d6dce8;
+font-weight: 500;
+}
+
+/* ─── Countdown ─── */
+.countdown-row {
+display: flex;
+align-items: center;
+justify-content: space-between;
+padding: 6px 0 2px;
+border-top: 1px solid rgba(255, 255, 255, 0.04);
+margin-top: 2px;
+}
+.countdown-row .cd-label {
+font-size: 11px;
+color: #6b7a96;
+font-weight: 500;
+letter-spacing: 0.3px;
+}
+.countdown-row .cd-time {
+font-size: 18px;
+font-weight: 700;
+font-variant-numeric: tabular-nums;
+color: #f0f4ff;
+}
+.countdown-row .cd-time.warning {
+color: #fbbf24;
+}
+.countdown-row .cd-time.danger {
+color: #f87171;
+}
+
+/* ─── Best Signal Ticker ─── */
+.best-ticker {
+margin: 8px 0 4px;
+padding: 6px 12px;
+background: rgba(108, 140, 255, 0.08);
+border-radius: 8px;
+border: 1px solid rgba(108, 140, 255, 0.12);
+display: flex;
+align-items: center;
+gap: 8px;
+font-size: 12px;
+min-height: 34px;
+}
+.best-ticker .bt-label {
+color: #6b7a96;
+font-weight: 500;
+white-space: nowrap;
+}
+.best-ticker .bt-signal {
+font-weight: 600;
+color: #f0f4ff;
+flex: 1;
+overflow: hidden;
+text-overflow: ellipsis;
+white-space: nowrap;
+}
+.best-ticker .bt-signal strong {
+color: #fbbf24;
+}
+.best-ticker .bt-signal .hot {
+color: #34d399;
+}
+.best-ticker .bt-flame {
+font-size: 16px;
+}
+.best-ticker .bt-none {
+color: #6b7a96;
+font-style: italic;
+}
+
+/* ─── Disclaimer ─── */
+.disclaimer {
+font-size: 9px;
+color: #4b5a76;
+text-align: center;
+padding: 6px 0 2px;
+letter-spacing: 0.2px;
+border-top: 1px solid rgba(255, 255, 255, 0.03);
+margin-top: 6px;
+}
+.disclaimer a {
+color: #6c8cff;
+text-decoration: none;
+cursor: pointer;
+}
+.disclaimer a:hover {
+text-decoration: underline;
+}
+
+/* ─── Info Modal ─── */
+.modal-overlay {
+position: fixed;
+inset: 0;
+background: rgba(0, 0, 0, 0.7);
+backdrop-filter: blur(6px);
+-webkit-backdrop-filter: blur(6px);
+display: none;
+align-items: center;
+justify-content: center;
+z-index: 100000;
+animation: fadeIn 0.2s;
+}
+.modal-overlay.open {
+display: flex;
+}
+@keyframes fadeIn {
+from {
+opacity: 0;
+transform: scale(0.96);
+}
+to {
+opacity: 1;
+transform: scale(1);
+}
+}
+.modal-box {
+background: #141c2b;
+border: 1px solid rgba(255, 255, 255, 0.08);
+border-radius: 18px;
+padding: 28px 32px 24px;
+max-width: 440px;
+width: 90%;
+color: #d6dce8;
+box-shadow: 0 30px 80px rgba(0, 0, 0, 0.8);
+}
+.modal-box h2 {
+font-size: 18px;
+font-weight: 700;
+margin-bottom: 12px;
+color: #f0f4ff;
+display: flex;
+align-items: center;
+gap: 10px;
+}
+.modal-box h2 .icon {
+font-size: 22px;
+}
+.modal-box p {
+font-size: 13px;
+line-height: 1.7;
+color: #b0bcd6;
+margin-bottom: 12px;
+}
+.modal-box ul {
+padding-left: 20px;
+margin-bottom: 16px;
+font-size: 13px;
+color: #b0bcd6;
+line-height: 1.8;
+}
+.modal-box ul li strong {
+color: #f0f4ff;
+}
+.modal-box .modal-close {
+background: rgba(255, 255, 255, 0.06);
+border: none;
+color: #d6dce8;
+padding: 8px 24px;
+border-radius: 10px;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+transition: background 0.15s;
+float: right;
+}
+.modal-box .modal-close:hover {
+background: rgba(255, 255, 255, 0.12);
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 480px) {
+#overlay {
+top: 12px;
+left: 12px;
+width: calc(100vw - 24px);
+min-width: 0;
+padding: 14px 14px 10px;
+border-radius: 14px;
+}
+.stats-grid {
+gap: 6px;
+}
+.stat-card {
+padding: 8px 10px;
+}
+.stat-card .value {
+font-size: 18px;
+}
+.digit-match .digit-display .digit {
+font-size: 26px;
+}
+.market-selector select {
+font-size: 12px;
+padding: 5px 28px 5px 8px;
+}
+.header .logo {
+font-size: 13px;
+}
+.status-bar {
+font-size: 11px;
+gap: 8px;
+padding: 4px 8px 6px;
+}
+.best-ticker {
+font-size: 11px;
+padding: 4px 10px;
+}
+.modal-box {
+padding: 20px 18px 18px;
+}
+}
+
+/* ─── Scrollbar ─── */
+::-webkit-scrollbar {
+width: 4px;
+}
+::-webkit-scrollbar-track {
+background: transparent;
+}
+::-webkit-scrollbar-thumb {
+background: rgba(255, 255, 255, 0.15);
+border-radius: 4px;
+}
+</style>
+</head>
+<body>
+
+<!-- ═══ OVERLAY ═══ -->
+<div id="overlay" role="dialog" aria-label="BestAim Analysis Tool">
+
+<!-- Header -->
+<div class="header" id="dragHandle">
+<div class="header-left">
+<div class="logo">￼ Best<span>Aim</span></div>
+</div>
+<div class="header-actions">
+<button id="infoBtn" title="Information &amp; Disclaimer" aria-label="Information">ⓘ</button>
+<button class="close-btn" id="closeBtn" title="Close overlay" aria-label="Close">✕</button>
+</div>
+</div>
+
+<!-- Status Bar -->
+<div class="status-bar">
+<div class="status-live">
+<span class="status-dot" id="statusDot"></span>
+<span id="statusText">Connecting…</span>
+</div>
+<div class="status-meta">
+<span>Markets</span>
+<span class="ready-count" id="marketCount">0/14</span>
+<span>·</span>
+<span id="tickCount">0</span>
+<span>ticks</span>
+</div>
+</div>
+
+<!-- Market Selector -->
+<div class="market-selector">
+<label for="marketSelect">Market</label>
+<select id="marketSelect"></select>
+</div>
+
+<!-- Stats Grid -->
+<div class="stats-grid" id="statsGrid">
+
+<!-- Digit Match -->
+<div class="stat-card digit-match" id="digitCard">
+<div class="label">Digit Match</div>
+<div class="digit-display">
+<span class="digit" id="digitValue">—</span>
+<span class="pct" id="digitPct">0.0%</span>
+</div>
+<div class="bar-wrap"><div class="bar" id="digitBar" style="width:0%"></div></div>
+<div class="sub-digits" id="digitSub">0:0% 1:0% 2:0% 3:0% 4:0% 5:0% 6:0% 7:0% 8:0% 9:0%</div>
+</div>
+
+<!-- Even / Odd -->
+<div class="stat-card" id="evenOddCard">
+<div class="label">Even / Odd</div>
+<div class="value" id="evenOddValue">—</div>
+<div class="mini-row"><span>Even <span class="num" id="evenPct">0%</span></span><span>Odd <span class="num" id="oddPct">0%</span></span></div>
+<div class="bar-wrap"><div class="bar" id="evenBar" style="width:0%"></div></div>
+</div>
+
+<!-- Over / Under -->
+<div class="stat-card" id="overUnderCard">
+<div class="label">Over 5 / Under 5</div>
+<div class="value" id="overUnderValue">—</div>
+<div class="mini-row"><span>Over <span class="num" id="overPct">0%</span></span><span>Under <span class="num" id="underPct">0%</span></span></div>
+<div class="bar-wrap"><div class="bar" id="overBar" style="width:0%"></div></div>
+</div>
+
+<!-- Rise / Fall (full width) -->
+<div class="stat-card full" id="riseFallCard">
+<div class="label">Rise / Fall</div>
+<div class="rise-fall">
+<div class="rf-item"><span class="rf-label">Rise</span><span class="rf-value up" id="riseCount">0</span></div>
+<div class="rf-item"><span class="rf-label">Fall</span><span class="rf-value down" id="fallCount">0</span></div>
+<div class="rf-item"><span class="rf-label">Δ</span><span class="rf-value" id="riseFallDiff">0</span></div>
+</div>
+</div>
+</div>
+
+<!-- Countdown -->
+<div class="countdown-row">
+<span class="cd-label">￼ Countdown</span>
+<span class="cd-time" id="countdownDisplay">60s</span>
+</div>
+
+<!-- Best Signal Ticker -->
+<div class="best-ticker" id="bestTicker">
+<span class="bt-label">￼ Best</span>
+<span class="bt-signal" id="bestSignalText"><span class="bt-none">Scanning markets…</span></span>
+<span class="bt-flame" id="bestFlame">￼</span>
+</div>
+
+<!-- Disclaimer -->
+<div class="disclaimer">
+￼ Statistics only — not financial advice.
+<a id="disclaimerLink">Learn more</a>
+</div>
+</div>
+
+<!-- ═══ INFO MODAL ═══ -->
+<div class="modal-overlay" id="infoModal">
+<div class="modal-box">
+<h2><span class="icon">￼</span> Statistics Only</h2>
+<p>
+<strong>BestAim Analysis Tool</strong> counts historical tick frequencies
+to highlight <em>statistical imbalances</em> — it does <strong>not</strong>
+predict future price movements.
+</p>
+<ul>
+<li><strong>Deriv Volatility</strong> is RNG-based. Past ticks ≠ future results.</li>
+<li><strong>Risk Management:</strong> Max <strong>1%</strong> risk per trade.
+Stop after <strong>2 consecutive losses</strong>.</li>
+<li>No tool offers 90% accuracy. Use this to <em>avoid bad trades</em>,
+not to guarantee wins.</li>
+</ul>
+<button class="modal-close" id="modalCloseBtn">Got it</button>
+<div style="clear:both;"></div>
+</div>
+</div>
+
+<!-- ═══ JAVASCRIPT ═══ -->
+<script>
+(function() {
+'use strict';
+
+// ─── CONFIG ────────────────────────────────────────────────
+const MARKETS = [
+'R_10', 'R_25', 'R_50', 'R_75', 'R_100', 'R_150', 'R_200',
+'R_300', 'R_400', 'R_500', 'R_750', 'R_1000', 'R_2000', 'R_5000'
+];
+const BUFFER_SIZE = 1000;
+const SIGNAL_THRESHOLD = 11; // % — "Hot Match"
+const STRONG_THRESHOLD = 13; // % — "Strong Signal"
+const COUNTDOWN_SECONDS = 60;
+
+// ￼ DEMO APP ID (works immediately, no profile needed)
+const APP_ID = '1089';
+const WS_URL = `wss://ws.deriv.com/websockets/v3?app_id=${APP_ID}`;
+
+// ─── STATE (CORRECTED) ─────────────────────────────────────
+const state = {
+ws: null,
+connected: false,
+buffers: {},
+tickCounts: {},
+lastPrices: {},
+stats: {},
+currentMarket: 'R_100',
+countdown: COUNTDOWN_SECONDS,
+countdownInterval: null,
+bestSignal: null,
+marketReady: {},
+reconnectAttempts: 0,
+maxReconnect: 10,
+reconnectDelay: 2000,
+isDragging: false,
+dragOffsetX: 0,
+dragOffsetY: 0,
+initialized: false,
+audioCtx: null,
+};
+
+// ─── DOM REFS ──────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const overlay = $('overlay');
+const dragHandle = $('dragHandle');
+const statusDot = $('statusDot');
+const statusText = $('statusText');
+const marketCount = $('marketCount');
+const tickCount = $('tickCount');
+const marketSelect = $('marketSelect');
+const digitValue = $('digitValue');
+const digitPct = $('digitPct');
+const digitBar = $('digitBar');
+const digitSub = $('digitSub');
+const evenOddValue = $('evenOddValue');
+const evenPct = $('evenPct');
+const oddPct = $('oddPct');
+const evenBar = $('evenBar');
+const overUnderValue = $('overUnderValue');
+const overPct = $('overPct');
+const underPct = $('underPct');
+const overBar = $('overBar');
+const riseCount = $('riseCount');
+const fallCount = $('fallCount');
+const riseFallDiff = $('riseFallDiff');
+const countdownDisplay = $('countdownDisplay');
+const bestSignalText = $('bestSignalText');
+const bestFlame = $('bestFlame');
+const infoBtn = $('infoBtn');
+const closeBtn = $('closeBtn');
+const infoModal = $('infoModal');
+const modalCloseBtn = $('modalCloseBtn');
+const disclaimerLink = $('disclaimerLink');
+const digitCard = $('digitCard');
+const evenOddCard = $('evenOddCard');
+const overUnderCard = $('overUnderCard');
+
+// ─── AUDIO (Web Audio "ding") ─────────────────────────────
+function playDing() {
+try {
+if (!state.audioCtx) {
+state.audioCtx = new(window.AudioContext || window.webkitAudioContext)();
+}
+const ctx = state.audioCtx;
+if (ctx.state === 'suspended') {
+ctx.resume();
+}
+const osc = ctx.createOscillator();
+const gain = ctx.createGain();
+osc.connect(gain);
+gain.connect(ctx.destination);
+osc.frequency.value = 880;
+osc.type = 'sine';
+gain.gain.setValueAtTime(0.15, ctx.currentTime);
+gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.25);
+osc.start(ctx.currentTime);
+osc.stop(ctx.currentTime + 0.25);
+// second tone
+const osc2 = ctx.createOscillator();
+const gain2 = ctx.createGain();
+osc2.connect(gain2);
+gain2.connect(ctx.destination);
+osc2.frequency.value = 1100;
+osc2.type = 'sine';
+gain2.gain.setValueAtTime(0.10, ctx.currentTime + 0.10);
+gain2.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.35);
+osc2.start(ctx.currentTime + 0.10);
+osc2.stop(ctx.currentTime + 0.35);
+} catch (_) { /* silent fallback */ }
+}
+
+// ─── UTILITY ──────────────────────────────────────────────
+function getDigit(price) {
+const intPart = Math.floor(Math.abs(price));
+return intPart % 10;
+}
+
+function clamp(v, min, max) { return Math.min(max, Math.max(min, v)); }
+
+function pctStr(val) { return (val * 100).toFixed(1) + '%'; }
+
+function formatNumber(n) { return n.toLocaleString(); }
+
+// ─── CIRCULAR BUFFER ──────────────────────────────────────
+function createBuffer(size) {
+return {
+data: [],
+maxSize: size,
+push(item) {
+if (this.data.length >= this.maxSize) {
+this.data.shift();
+}
+this.data.push(item);
+},
+get() { return this.data; },
+clear() { this.data = []; },
+length() { return this.data.length; },
+};
+}
+
+// ─── STATISTICS ENGINE ────────────────────────────────────
+function computeStats(market) {
+const buf = state.buffers[market];
+if (!buf || buf.length() < 10) {
+return null;
+}
+const ticks = buf.get();
+const n = ticks.length;
+
+const digitCounts = Array(10).fill(0);
+let evenCount = 0,
+oddCount = 0;
+let overCount = 0,
+underCount = 0;
+let riseCountVal = 0,
+fallCountVal = 0;
+
+for (let i = 0; i < n; i++) {
+const t = ticks[i];
+const price = t.quote;
+const digit = getDigit(price);
+digitCounts[digit]++;
+
+if (digit % 2 === 0) evenCount++;
+else oddCount++;
+
+if (digit > 5) overCount++;
+else if (digit < 5) underCount++;
+
+if (i > 0) {
+const prev = ticks[i - 1].quote;
+if (price > prev) riseCountVal++;
+else if (price < prev) fallCountVal++;
+}
+}
+
+const digitPcts = digitCounts.map(c => c / n);
+const maxDigit = digitPcts.reduce((a, b, i) => b > digitPcts[a] ? i : a, 0);
+const maxPct = digitPcts[maxDigit];
+
+const evenPctVal = evenCount / n;
+const oddPctVal = oddCount / n;
+const overPctVal = overCount / n;
+const underPctVal = underCount / n;
+
+let signalType = 'neutral';
+if (maxPct >= STRONG_THRESHOLD / 100) signalType = 'strong';
+else if (maxPct >= SIGNAL_THRESHOLD / 100) signalType = 'hot';
+
+return {
+digitCounts,
+digitPcts,
+maxDigit,
+maxPct,
+evenCount,
+oddCount,
+evenPct: evenPctVal,
+oddPct: oddPctVal,
+overCount,
+underCount,
+overPct: overPctVal,
+underPct: underPctVal,
+riseCount: riseCountVal,
+fallCount: fallCountVal,
+totalTicks: n,
+signalType,
+riseFallDiff: riseCountVal - fallCountVal,
+};
+}
+
+// ─── UPDATE UI ────────────────────────────────────────────
+function updateUI() {
+const market = state.currentMarket;
+const stats = state.stats[market];
+const buf = state.buffers[market];
+
+const totalTicks = buf ? buf.length() : 0;
+tickCount.textContent = formatNumber(totalTicks);
+
+const ready = Object.values(state.marketReady).filter(Boolean).length;
+marketCount.textContent = ready + '/' + MARKETS.length;
+
+if (!stats) {
+digitValue.textContent = '—';
+digitPct.textContent = '0.0%';
+digitBar.style.width = '0%';
+digitSub.textContent = '0:0% 1:0% 2:0% 3:0% 4:0% 5:0% 6:0% 7:0% 8:0% 9:0%';
+evenOddValue.textContent = '—';
+evenPct.textContent = '0%';
+oddPct.textContent = '0%';
+evenBar.style.width = '0%';
+overUnderValue.textContent = '—';
+overPct.textContent = '0%';
+underPct.textContent = '0%';
+overBar.style.width = '0%';
+riseCount.textContent = '0';
+fallCount.textContent = '0';
+riseFallDiff.textContent = '0';
+digitCard.classList.remove('highlight');
+evenOddCard.classList.remove('highlight');
+overUnderCard.classList.remove('highlight');
+return;
+}
+
+// Digit Match
+const d = stats.maxDigit;
+const pct = stats.maxPct;
+digitValue.textContent = d;
+digitPct.textContent = pctStr(pct);
+digitPct.className = 'pct' + (pct >= STRONG_THRESHOLD / 100 ? ' strong' : pct >= SIGNAL_THRESHOLD / 100 ?
+' hot' : '');
+digitBar.style.width = clamp(pct * 100, 0, 100) + '%';
+digitBar.className = 'bar' + (pct >= STRONG_THRESHOLD / 100 ? ' strong' : pct >= SIGNAL_THRESHOLD / 100 ?
+' hot' : '');
+
+const subParts = stats.digitPcts.map((p, i) =>
+`${i}:<span class="d-pct">${pctStr(p)}</span>`
+);
+digitSub.innerHTML = subParts.join(' ');
+digitCard.classList.toggle('highlight', pct >= SIGNAL_THRESHOLD / 100);
+
+// Even / Odd
+const ePct = stats.evenPct;
+const oPct = stats.oddPct;
+const ePctDisplay = (ePct * 100).toFixed(1);
+const oPctDisplay = (oPct * 100).toFixed(1);
+evenOddValue.textContent = ePct > oPct ? `Even ${ePctDisplay}%` : `Odd ${oPctDisplay}%`;
+evenPct.textContent = ePctDisplay + '%';
+oddPct.textContent = oPctDisplay + '%';
+evenBar.style.width = (ePct * 100) + '%';
+evenBar.className = 'bar' + (Math.abs(ePct - 0.5) > 0.08 ? ' hot' : '');
+evenOddCard.classList.toggle('highlight', Math.abs(ePct - 0.5) > 0.08);
+
+// Over / Under
+const ovPct = stats.overPct;
+const unPct = stats.underPct;
+const ovPctDisplay = (ovPct * 100).toFixed(1);
+const unPctDisplay = (unPct * 100).toFixed(1);
+overUnderValue.textContent = ovPct > unPct ? `Over ${ovPctDisplay}%` : `Under ${unPctDisplay}%`;
+overPct.textContent = ovPctDisplay + '%';
+underPct.textContent = unPctDisplay + '%';
+overBar.style.width = (ovPct * 100) + '%';
+overBar.className = 'bar' + (Math.abs(ovPct - 0.5) > 0.08 ? ' hot' : '');
+overUnderCard.classList.toggle('highlight', Math.abs(ovPct - 0.5) > 0.08);
+
+// Rise / Fall
+riseCount.textContent = stats.riseCount;
+fallCount.textContent = stats.fallCount;
+const diff = stats.riseFallDiff;
+riseFallDiff.textContent = (diff > 0 ? '+' : '') + diff;
+riseFallDiff.style.color = diff > 0 ? '#34d399' : diff < 0 ? '#f87171' : '#8896b0';
+
+updateBestSignal();
+updateCountdownDisplay();
+}
+
+// ─── BEST SIGNAL ──────────────────────────────────────────
+function updateBestSignal() {
+let best = null;
+let bestPct = 0;
+
+for (const market of MARKETS) {
+const stats = state.stats[market];
+if (!stats) continue;
+if (stats.maxPct > bestPct && stats.maxPct >= SIGNAL_THRESHOLD / 100) {
+bestPct = stats.maxPct;
+best = {
+market,
+digit: stats.maxDigit,
+pct: stats.maxPct,
+type: stats.signalType,
+};
+}
+}
+
+state.bestSignal = best;
+
+if (best) {
+const emoji = best.type === 'strong' ? '￼' : '￼';
+const label = best.type === 'strong' ? 'STRONG' : 'HOT';
+bestSignalText.innerHTML =
+`<strong>${best.market}</strong> → Match ${best.digit} @ <span class="${best.type}">${pctStr(best.pct)}</span> ${label}`;
+bestFlame.textContent = emoji;
+} else {
+let hasData = false;
+for (const m of MARKETS) {
+if (state.buffers[m] && state.buffers[m].length() > 10) { hasData = true; break; }
+}
+if (hasData) {
+bestSignalText.innerHTML = `<span class="bt-none">No strong signals yet</span>`;
+} else {
+bestSignalText.innerHTML = `<span class="bt-none">Scanning markets…</span>`;
+}
+bestFlame.textContent = '￼';
+}
+}
+
+// ─── COUNTDOWN ─────────────────────────────────────────────
+function updateCountdownDisplay() {
+const s = state.countdown;
+countdownDisplay.textContent = s + 's';
+countdownDisplay.className = 'cd-time' +
+(s <= 10 ? ' danger' : s <= 20 ? ' warning' : '');
+}
+
+function resetCountdown() {
+state.countdown = COUNTDOWN_SECONDS;
+updateCountdownDisplay();
+}
+
+function startCountdown() {
+if (state.countdownInterval) {
+clearInterval(state.countdownInterval);
+}
+state.countdownInterval = setInterval(() => {
+state.countdown--;
+updateCountdownDisplay();
+if (state.countdown <= 0) {
+for (const m of MARKETS) {
+if (state.buffers[m]) {
+state.buffers[m].clear();
+}
+state.stats[m] = null;
+state.lastPrices[m] = null;
+}
+for (const m of MARKETS) {
+state.tickCounts[m] = 0;
+}
+resetCountdown();
+computeAndUpdateStats();
+try { playDing(); } catch (_) {}
+updateUI();
+}
+}, 1000);
+}
+
+// ─── COMPUTE & UPDATE STATS ──────────────────────────────
+function computeAndUpdateStats() {
+for (const market of MARKETS) {
+const stats = computeStats(market);
+state.stats[market] = stats;
+if (state.buffers[market] && state.buffers[market].length() > 10) {
+state.marketReady[market] = true;
+}
+}
+updateBestSignal();
+}
+
+// ─── WEBSOCKET ─────────────────────────────────────────────
+function connectWebSocket() {
+if (state.ws && (state.ws.readyState === WebSocket.OPEN || state.ws.readyState === WebSocket.CONNECTING)) {
+return;
+}
+
+try {
+state.ws = new WebSocket(WS_URL);
+state.ws.onopen = onWsOpen;
+state.ws.onmessage = onWsMessage;
+state.ws.onclose = onWsClose;
+state.ws.onerror = onWsError;
+statusText.textContent = 'Connecting…';
+statusDot.className = 'status-dot off';
+} catch (e) {
+console.warn('WebSocket connection failed:', e);
+scheduleReconnect();
+}
+}
+
+function onWsOpen() {
+state.connected = true;
+state.reconnectAttempts = 0;
+statusDot.className = 'status-dot';
+statusText.textContent = 'Live';
+for (const market of MARKETS) {
+const msg = JSON.stringify({
+ticks: market,
+subscribe: 1
+});
+state.ws.send(msg);
+}
+if (!state.countdownInterval) {
+startCountdown();
+}
+state.initialized = true;
+console.log('￼ BestAim connected!');
+}
+
+function onWsMessage(event) {
+try {
+const data = JSON.parse(event.data);
+if (data.msg_type === 'tick' && data.tick) {
+const tick = data.tick;
+const symbol = tick.symbol;
+const price = tick.quote;
+const epoch = tick.epoch;
+
+if (!symbol || !MARKETS.includes(symbol)) return;
+if (typeof price !== 'number' || isNaN(price)) return;
+
+if (!state.buffers[symbol]) {
+state.buffers[symbol] = createBuffer(BUFFER_SIZE);
+}
+if (!state.tickCounts[symbol]) {
+state.tickCounts[symbol] = 0;
+}
+
+state.buffers[symbol].push({ quote: price, epoch: epoch });
+state.tickCounts[symbol]++;
+
+state.lastPrices[symbol] = price;
+
+if (state.buffers[symbol].length() >= 50) {
+state.marketReady[symbol] = true;
+}
+
+const stats = computeStats(symbol);
+state.stats[symbol] = stats;
+
+if (symbol === state.currentMarket) {
+updateUI();
+} else {
+updateBestSignal();
+const curBuf = state.buffers[state.currentMarket];
+if (curBuf) {
+tickCount.textContent = formatNumber(curBuf.length());
+}
+const ready = Object.values(state.marketReady).filter(Boolean).length;
+marketCount.textContent = ready + '/' + MARKETS.length;
+}
+
+if (stats && stats.signalType === 'strong' && stats.maxPct >= STRONG_THRESHOLD / 100) {
+const key = 'lastAlert_' + symbol;
+const now = Date.now();
+if (!window[key] || now - window[key] > 30000) {
+window[key] = now;
+try { playDing(); } catch (_) {}
+}
+}
+}
+} catch (e) {
+// Silent parse errors
+}
+}
+
+function onWsClose(event) {
+state.connected = false;
+statusDot.className = 'status-dot off';
+statusText.textContent = 'Disconnected';
+scheduleReconnect();
+}
+
+function onWsError(event) {
+state.connected = false;
+statusDot.className = 'status-dot off';
+statusText.textContent = 'Error';
+}
+
+function scheduleReconnect() {
+if (state.reconnectAttempts >= state.maxReconnect) {
+statusText.textContent = 'Offline';
+return;
+}
+state.reconnectAttempts++;
+const delay = state.reconnectDelay * Math.min(state.reconnectAttempts, 5);
+setTimeout(() => {
+if (!state.connected) {
+connectWebSocket();
+}
+}, delay);
+}
+
+// ─── MARKET SWITCH ────────────────────────────────────────
+function switchMarket(market) {
+if (!MARKETS.includes(market)) return;
+state.currentMarket = market;
+marketSelect.value = market;
+if (!state.stats[market]) {
+const stats = computeStats(market);
+state.stats[market] = stats;
+}
+updateUI();
+}
+
+// ─── POPULATE MARKET SELECT ──────────────────────────────
+function populateMarketSelect() {
+marketSelect.innerHTML = '';
+for (const m of MARKETS) {
+const opt = document.createElement('option');
+opt.value = m;
+opt.textContent = m;
+marketSelect.appendChild(opt);
+}
+marketSelect.value = state.currentMarket;
+marketSelect.addEventListener('change', function() {
+switchMarket(this.value);
+});
+}
+
+// ─── DRAGGABLE ────────────────────────────────────────────
+function initDraggable() {
+let isDragging = false;
+let startX, startY, origX, origY;
+
+dragHandle.addEventListener('mousedown', (e) => {
+if (e.target.closest('button') || e.target.closest('select')) return;
+isDragging = true;
+const rect = overlay.getBoundingClientRect();
+startX = e.clientX;
+startY = e.clientY;
+origX = rect.left;
+origY = rect.top;
+overlay.classList.add('dragging');
+document.body.style.cursor = 'grabbing';
+e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+if (!isDragging) return;
+const dx = e.clientX - startX;
+const dy = e.clientY - startY;
+let left = origX + dx;
+let top = origY + dy;
+const w = overlay.offsetWidth;
+const h = overlay.offsetHeight;
+left = clamp(left, 0, window.innerWidth - w);
+top = clamp(top, 0, window.innerHeight - h);
+overlay.style.left = left + 'px';
+overlay.style.top = top + 'px';
+e.preventDefault();
+});
+
+document.addEventListener('mouseup', () => {
+if (isDragging) {
+isDragging = false;
+overlay.classList.remove('dragging');
+document.body.style.cursor = '';
+}
+});
+
+let touchId = null;
+dragHandle.addEventListener('touchstart', (e) => {
+if (e.target.closest('button') || e.target.closest('select')) return;
+const t = e.touches[0];
+const rect = overlay.getBoundingClientRect();
+startX = t.clientX;
+startY = t.clientY;
+origX = rect.left;
+origY = rect.top;
+isDragging = true;
+overlay.classList.add('dragging');
+touchId = t.identifier;
+e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchmove', (e) => {
+if (!isDragging) return;
+let t = null;
+for (const touch of e.touches) {
+if (touch.identifier === touchId) { t = touch; break; }
+}
+if (!t) return;
+const dx = t.clientX - startX;
+const dy = t.clientY - startY;
+let left = origX + dx;
+let top = origY + dy;
+const w = overlay.offsetWidth;
+const h = overlay.offsetHeight;
+left = clamp(left, 0, window.innerWidth - w);
+top = clamp(top, 0, window.innerHeight - h);
+overlay.style.left = left + 'px';
+overlay.style.top = top + 'px';
+e.preventDefault();
+}, { passive: false });
+
+document.addEventListener('touchend', () => {
+if (isDragging) {
+isDragging = false;
+overlay.classList.remove('dragging');
+touchId = null;
+}
+});
+}
+
+// ─── MODAL ────────────────────────────────────────────────
+function openModal() {
+infoModal.classList.add('open');
+}
+
+function closeModal() {
+infoModal.classList.remove('open');
+}
+
+infoBtn.addEventListener('click', openModal);
+modalCloseBtn.addEventListener('click', closeModal);
+disclaimerLink.addEventListener('click', (e) => { e.preventDefault();
+openModal(); });
+infoModal.addEventListener('click', (e) => {
+if (e.target === infoModal) closeModal();
+});
+document.addEventListener('keydown', (e) => {
+if (e.key === 'Escape') closeModal();
+});
+
+// ─── CLOSE ────────────────────────────────────────────────
+closeBtn.addEventListener('click', () => {
+overlay.style.display = 'none';
+});
+
+// ─── INIT ─────────────────────────────────────────────────
+function init() {
+populateMarketSelect();
+
+for (const m of MARKETS) {
+state.buffers[m] = createBuffer(BUFFER_SIZE);
+state.tickCounts[m] = 0;
+state.marketReady[m] = false;
+state.lastPrices[m] = null;
+state.stats[m] = null;
+}
+
+initDraggable();
+connectWebSocket();
+
+setInterval(() => {
+if (state.connected) {
+updateUI();
+}
+}, 2000);
+
+document.addEventListener('visibilitychange', () => {
+if (document.visibilityState === 'visible' && !state.connected) {
+connectWebSocket();
+}
+});
+
+console.log(`￼ BestAim Analysis Tool initialized with App ID: ${APP_ID}`);
+console.log(`￼ Monitoring ${MARKETS.length} markets`);
+}
+
+// ─── START ────────────────────────────────────────────────
+if (document.readyState === 'loading') {
+document.addEventListener('DOMContentLoaded', init);
+} else {
+init();
+}
+
+// ─── EXPOSE FOR DEBUG ─────────────────────────────────────
+window.__bestAim = {
+state,
+MARKETS,
+connectWebSocket,
+switchMarket,
+computeStats,
+updateUI,
+};
+
+})();
+</script>
+</body>
+</html>
